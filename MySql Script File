@@ -1,15 +1,21 @@
-CREATE DATABASE xml_read;
+-- create database
+CREATE DATABASE xml;
 
-USE xml_read;
+-- use database
+USE xml;
 
-CREATE  TABLE `applicants` (   
-    `id`         INT          NOT NULL ,
-    `last_name`  VARCHAR(100) NOT NULL ,
-    `first_name` VARCHAR(100) NULL ,   
- PRIMARY KEY (`id`) );
- 
+-- create table
+CREATE TABLE applicants (
+  id INT NOT NULL,
+  first_name VARCHAR(100) NOT NULL,
+  last_name VARCHAR(100) DEFAULT NULL,
+  PRIMARY KEY (id)
+);
+
+-- exceute procedure 1
 DELIMITER $$
-CREATE PROCEDURE `import_applicant_xml`(xml TEXT, node VARCHAR(255))
+DROP PROCEDURE IF EXISTS import_applicant_xml_attribute$$
+CREATE PROCEDURE import_applicant_xml_attribute(xml TEXT, node VARCHAR(255))
 BEGIN
     DECLARE xml_content TEXT;
     DECLARE v_row_index INT UNSIGNED DEFAULT 0;   
@@ -26,13 +32,46 @@ BEGIN
         SET v_row_index = v_row_index + 1;        
         SET v_xpath_row = CONCAT(node, '[', v_row_index, ']/@*');
         INSERT INTO applicants VALUES (
-            EXTRACTVALUE(xml_content, CONCAT(v_xpath_row, '[1]')),
-            EXTRACTVALUE(xml_content, CONCAT(v_xpath_row, '[2]')),
-            EXTRACTVALUE(xml_content, CONCAT(v_xpath_row, '[3]'))
+            EXTRACTVALUE(xml_content, CONCAT(v_xpath_row, '[1]')), /*get id value*/
+            EXTRACTVALUE(xml_content, CONCAT(v_xpath_row, '[2]')), /*get fname value*/
+            EXTRACTVALUE(xml_content, CONCAT(v_xpath_row, '[3]'))  /*get lname value*/
         );
     END WHILE;
-END
+END$$
 
+DELIMITER ;
+
+-- exceute procedure 2
+DELIMITER $$
+DROP PROCEDURE IF EXISTS `import_applicant_xml_element`$$
+CREATE PROCEDURE `import_applicant_xml_element`(xml TEXT, node VARCHAR(255))
+BEGIN
+    DECLARE xml_content TEXT;
+    DECLARE v_row_index INT UNSIGNED DEFAULT 0;   
+    DECLARE v_row_count INT UNSIGNED;  
+    DECLARE v_xpath_row VARCHAR(255); 
+ 
+    SET xml_content = xml;
+ 
+    -- calculate the number of row elements.   
+    SET v_row_count  = EXTRACTVALUE(xml_content, CONCAT('count(', node, ')')); 
+    
+    -- loop through all the row elements    
+    WHILE v_row_index < v_row_count DO                
+        SET v_row_index = v_row_index + 1;        
+        SET v_xpath_row = CONCAT(node, '[', v_row_index, ']');
+        
+        INSERT INTO applicants VALUES (
+            EXTRACTVALUE(xml_content, CONCAT(v_xpath_row, '/Id')),
+	    EXTRACTVALUE(xml_content, CONCAT(v_xpath_row, '/FirstName')),
+            EXTRACTVALUE(xml_content, CONCAT(v_xpath_row, '/LastName'))
+        );
+    END WHILE;
+END$$
+
+DELIMITER ;
+
+-- set data in global object veriable. 
 SET @data:='<?xml version="1.0"?>
 <applicant_list>
   <applicant id="1" fname="Rob" lname="Gravelle"/>
@@ -40,6 +79,34 @@ SET @data:='<?xml version="1.0"?>
   <applicant id="3" fname="Little" lname="Richard"/>
 </applicant_list>';
 
-SELECT @data;
+-- calling procedure
+CALL import_applicant_xml_attribute(@data,'/applicant_list/applicant');
 
-CALL import_applicant_xml(@data,'/applicant_list/applicant');
+-- selecting records from table
+SELECT * FROM applicants;
+
+-- set data in global object veriable. 
+SET @data1:='<?xml version="1.0"?>
+ <DocumentElement>
+	  <Employee>
+	    <Id>11</Id>
+	    <FirstName>ABC</FirstName>
+	    <LastName>Kumar</LastName>
+	  </Employee>
+	  <Employee>
+	    <Id>22</Id>
+	    <FirstName>XYZ</FirstName>
+	    <LastName>Kumar</LastName>
+	  </Employee>
+	  <Employee>
+	    <Id>33</Id>
+	    <FirstName>ASD</FirstName>
+	    <LastName>Kumar</LastName>
+	  </Employee>
+</DocumentElement>';
+
+-- calling procedure
+CALL import_applicant_xml_element(@data1,'/DocumentElement/Employee');
+
+-- selecting records from table
+SELECT * FROM applicants;
