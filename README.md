@@ -1,5 +1,4 @@
-# XMLIntoMySQLStoredProcedure
-Importing XML Data into MySQL Tables Using a Stored Procedure
+# Importing XML Data into MySQL Tables Using a Stored Procedure
 
 
 CREATE DATABASE xml_read;
